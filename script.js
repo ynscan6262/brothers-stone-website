@@ -205,23 +205,7 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-/* ===== CONTACT FORM ===== */
-const contactForm = document.getElementById('contact-form');
-if (contactForm) {
-  contactForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const btn = contactForm.querySelector('.btn-submit');
-    btn.textContent = 'Message Sent!';
-    btn.style.background = '#2c9f1a';
-    btn.disabled = true;
-    setTimeout(() => {
-      btn.textContent = 'Send Message';
-      btn.style.background = '';
-      btn.disabled = false;
-      contactForm.reset();
-    }, 3000);
-  });
-}
+/* Contact form handled by Formspree */
 
 /* ===== SMOOTH SCROLL ===== */
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {

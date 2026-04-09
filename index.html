@@ -543,42 +543,59 @@
         </div>
       </div>
       <div class="contact-form fade-right">
+        <div data-fs-success class="fs-success" style="display:none">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#3d6b1e" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="20 6 9 17 4 12"/></svg>
+          <h3>Message Sent!</h3>
+          <p>Thank you! We'll get back to you within 24 hours.</p>
+        </div>
+        <div data-fs-error class="fs-error-global" style="display:none">
+          Something went wrong. Please try again or call us directly.
+        </div>
         <form id="contact-form">
           <div class="form-row">
             <div class="form-group">
               <label for="name">Full Name</label>
-              <input type="text" id="name" name="name" placeholder="John Smith" required />
+              <input type="text" id="name" name="name" placeholder="John Smith" required data-fs-field />
+              <span data-fs-error="name" class="fs-field-error"></span>
             </div>
             <div class="form-group">
               <label for="email">Email Address</label>
-              <input type="email" id="email" name="email" placeholder="john@example.com" required />
+              <input type="email" id="email" name="email" placeholder="john@example.com" required data-fs-field />
+              <span data-fs-error="email" class="fs-field-error"></span>
             </div>
           </div>
           <div class="form-row">
             <div class="form-group">
               <label for="phone">Phone Number</label>
-              <input type="tel" id="phone" name="phone" placeholder="(555) 000-0000" />
+              <input type="tel" id="phone" name="phone" placeholder="(555) 000-0000" data-fs-field />
             </div>
             <div class="form-group">
               <label for="service">Service Interested In</label>
-              <select id="service" name="service" required>
+              <select id="service" name="service" required data-fs-field>
                 <option value="" disabled selected>Select a service...</option>
                 <option value="stone">Stone Installation</option>
                 <option value="masonry">Stone Masonry</option>
                 <option value="retaining">Retaining Walls</option>
                 <option value="driveway">Driveway &amp; Pavers</option>
               </select>
+              <span data-fs-error="service" class="fs-field-error"></span>
             </div>
           </div>
           <div class="form-group">
             <label for="message">Project Description</label>
-            <textarea id="message" name="message" placeholder="Tell us about your project — size, location, timeline, any specific ideas..."></textarea>
+            <textarea id="message" name="message" placeholder="Tell us about your project — size, location, timeline, any specific ideas..." data-fs-field></textarea>
+            <span data-fs-error="message" class="fs-field-error"></span>
           </div>
-          <button type="submit" class="btn btn-primary btn-submit">
+          <button type="submit" class="btn btn-primary btn-submit" data-fs-submit-btn>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             Send Message
           </button>
         </form>
+        <script>
+          window.formspree = window.formspree || function () { (formspree.q = formspree.q || []).push(arguments); };
+          formspree('initForm', { formElement: '#contact-form', formId: 'xykbakob' });
+        </script>
+        <script src="https://unpkg.com/@formspree/ajax@1" defer></script>
       </div>
     </div>
   </div>
