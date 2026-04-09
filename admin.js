@@ -90,8 +90,7 @@ async function doLogin() {
   hide(err);
 
   const hash   = await sha256(pw);
-  // Use custom hash if admin changed password, otherwise fall back to default
-  const stored = localStorage.getItem(LS_HASH) || DEFAULT_HASH;
+  const stored = DEFAULT_HASH;
 
   if (hash === stored) {
     sessionStorage.setItem(SESSION_KEY, 'ok');
