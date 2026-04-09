@@ -64,14 +64,6 @@ function checkSession() {
 }
 
 async function init() {
-  // Ensure the default hash is always set (works across all devices)
-  if (!localStorage.getItem(LS_HASH)) {
-    localStorage.setItem(LS_HASH, DEFAULT_HASH);
-  }
-  // Hide first-time setup — password is hardcoded
-  hide(document.getElementById('setup-form'));
-  show(document.getElementById('login-form'));
-
   if (checkSession()) {
     openDashboard();
   }
@@ -98,7 +90,8 @@ async function doLogin() {
   hide(err);
 
   const hash   = await sha256(pw);
-  const stored = localStorage.getItem(LS_HASH);
+  // Use custom hash if admin changed password, otherwise fall back to default
+  const stored = localStorage.getItem(LS_HASH) || DEFAULT_HASH;
 
   if (hash === stored) {
     sessionStorage.setItem(SESSION_KEY, 'ok');
