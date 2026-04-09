@@ -5,6 +5,7 @@ const LS_CUSTOM   = 'gallery_custom';
 const LS_HIDDEN   = 'gallery_hidden';
 const LS_CONTENT  = 'site_content';
 const SESSION_KEY = 'admin_session';
+const DEFAULT_HASH = 'a0fe13050fe87a8940f60c9146b37fb7fb8808e7d8539c5a4c69243179111696';
 
 /* All original gallery images (mirrors index.html) */
 const ORIGINAL_IMAGES = [
@@ -63,12 +64,14 @@ function checkSession() {
 }
 
 async function init() {
-  const storedHash = localStorage.getItem(LS_HASH);
-  if (!storedHash) {
-    // First time — show setup form
-    hide(document.getElementById('login-form'));
-    show(document.getElementById('setup-form'));
+  // Ensure the default hash is always set (works across all devices)
+  if (!localStorage.getItem(LS_HASH)) {
+    localStorage.setItem(LS_HASH, DEFAULT_HASH);
   }
+  // Hide first-time setup — password is hardcoded
+  hide(document.getElementById('setup-form'));
+  show(document.getElementById('login-form'));
+
   if (checkSession()) {
     openDashboard();
   }
