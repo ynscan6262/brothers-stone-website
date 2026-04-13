@@ -47,14 +47,6 @@ async function sha256(str) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function ls(key) {
-  try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
-}
-
-function lsSet(key, val) {
-  localStorage.setItem(key, JSON.stringify(val));
-}
-
 function show(el) { if (el) el.style.display = ''; }
 function hide(el) { if (el) el.style.display = 'none'; }
 
@@ -69,30 +61,14 @@ async function init() {
   }
 }
 
-async function setupPassword() {
-  const pw  = document.getElementById('setup-pw').value;
-  const pw2 = document.getElementById('setup-pw-confirm').value;
-  const err = document.getElementById('setup-error');
-  hide(err);
-
-  if (pw.length < 6) { err.textContent = 'Password must be at least 6 characters.'; show(err); return; }
-  if (pw !== pw2)    { err.textContent = 'Passwords do not match.'; show(err); return; }
-
-  const hash = await sha256(pw);
-  localStorage.setItem(LS_HASH, hash);
-  sessionStorage.setItem(SESSION_KEY, 'ok');
-  openDashboard();
-}
-
 async function doLogin() {
   const pw  = document.getElementById('login-pw').value;
   const err = document.getElementById('login-error');
   hide(err);
 
-  const hash   = await sha256(pw);
-  const stored = DEFAULT_HASH;
+  const hash = await sha256(pw);
 
-  if (hash === stored) {
+  if (hash === DEFAULT_HASH) {
     sessionStorage.setItem(SESSION_KEY, 'ok');
     openDashboard();
   } else {
@@ -125,16 +101,17 @@ function showTab(name, btn) {
 /* ===== MESSAGES ===== */
 let currentMsgId = null;
 
-function loadMessages() {
-  const messages = ls(LS_MESSAGES) || [];
+async function loadMessages() {
+  const messages = (await fbGet(LS_MESSAGES)) || [];
+  const arr = Array.isArray(messages) ? messages : Object.values(messages);
   const container = document.getElementById('messages-container');
   const badge     = document.getElementById('msg-badge');
-  const unread    = messages.filter(m => !m.read).length;
+  const unread    = arr.filter(m => !m.read).length;
 
   if (unread > 0) { badge.textContent = unread; show(badge); }
   else { hide(badge); }
 
-  if (messages.length === 0) {
+  if (arr.length === 0) {
     container.innerHTML = `
       <div class="no-messages">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -146,7 +123,7 @@ function loadMessages() {
     return;
   }
 
-  container.innerHTML = messages.slice().reverse().map(msg => `
+  container.innerHTML = arr.slice().reverse().map(msg => `
     <div class="message-card ${msg.read ? '' : 'unread'}" onclick="openMessage('${msg.id}')">
       <div class="msg-body">
         <div class="msg-name">${esc(msg.name)}</div>
@@ -165,16 +142,16 @@ function loadMessages() {
   `).join('');
 }
 
-function openMessage(id) {
-  const messages = ls(LS_MESSAGES) || [];
-  const idx = messages.findIndex(m => m.id === id);
+async function openMessage(id) {
+  const messages = (await fbGet(LS_MESSAGES)) || [];
+  const arr = Array.isArray(messages) ? messages : Object.values(messages);
+  const idx = arr.findIndex(m => m.id === id);
   if (idx === -1) return;
-  const msg = messages[idx];
+  const msg = arr[idx];
 
-  // Mark as read
   if (!msg.read) {
-    messages[idx].read = true;
-    lsSet(LS_MESSAGES, messages);
+    arr[idx].read = true;
+    await fbSet(LS_MESSAGES, arr);
     loadMessages();
   }
 
@@ -195,10 +172,11 @@ function closeMsgModal() {
   currentMsgId = null;
 }
 
-function deleteMessage(id) {
-  let messages = ls(LS_MESSAGES) || [];
-  messages = messages.filter(m => m.id !== id);
-  lsSet(LS_MESSAGES, messages);
+async function deleteMessage(id) {
+  let messages = (await fbGet(LS_MESSAGES)) || [];
+  let arr = Array.isArray(messages) ? messages : Object.values(messages);
+  arr = arr.filter(m => m.id !== id);
+  await fbSet(LS_MESSAGES, arr);
   loadMessages();
 }
 
@@ -208,9 +186,9 @@ function deleteCurrentMessage() {
   closeMsgModal();
 }
 
-function clearAllMessages() {
+async function clearAllMessages() {
   if (!confirm('Delete ALL messages? This cannot be undone.')) return;
-  lsSet(LS_MESSAGES, []);
+  await fbRemove(LS_MESSAGES);
   loadMessages();
 }
 
@@ -245,18 +223,19 @@ function handleFileSelect(input) {
   input.value = '';
 }
 
-function saveUpload() {
+async function saveUpload() {
   if (!pendingFiles.length) return;
 
   const category = document.getElementById('upload-category').value;
   const label    = document.getElementById('upload-label').value || categoryLabel(category);
   const title    = document.getElementById('upload-title').value || 'Custom Photo';
 
-  const custom = ls(LS_CUSTOM) || [];
+  const existing = (await fbGet(LS_CUSTOM)) || [];
+  const custom = Array.isArray(existing) ? existing : Object.values(existing);
   pendingFiles.forEach(f => {
     custom.push({ id: Date.now() + Math.random(), src: f.dataUrl, category, label, title });
   });
-  lsSet(LS_CUSTOM, custom);
+  await fbSet(LS_CUSTOM, custom);
 
   pendingFiles = [];
   hide(document.getElementById('upload-panel'));
@@ -280,8 +259,9 @@ function loadGallery() {
   loadOriginalGallery();
 }
 
-function loadCustomGallery() {
-  const custom   = ls(LS_CUSTOM) || [];
+async function loadCustomGallery() {
+  const existing = (await fbGet(LS_CUSTOM)) || [];
+  const custom   = Array.isArray(existing) ? existing : Object.values(existing);
   const grid     = document.getElementById('custom-gallery');
   const empty    = document.getElementById('custom-empty');
   const count    = document.getElementById('custom-count');
@@ -305,16 +285,18 @@ function loadCustomGallery() {
   `).join('');
 }
 
-function deleteCustomImage(id) {
+async function deleteCustomImage(id) {
   if (!confirm('Remove this photo from the gallery?')) return;
-  const custom = (ls(LS_CUSTOM) || []).filter(i => String(i.id) !== String(id));
-  lsSet(LS_CUSTOM, custom);
+  const existing = (await fbGet(LS_CUSTOM)) || [];
+  const custom = (Array.isArray(existing) ? existing : Object.values(existing)).filter(i => String(i.id) !== String(id));
+  await fbSet(LS_CUSTOM, custom);
   loadCustomGallery();
 }
 
-function loadOriginalGallery() {
-  const hidden = ls(LS_HIDDEN) || [];
-  const grid   = document.getElementById('original-gallery');
+async function loadOriginalGallery() {
+  const existing = (await fbGet(LS_HIDDEN)) || [];
+  const hidden   = Array.isArray(existing) ? existing : Object.values(existing);
+  const grid     = document.getElementById('original-gallery');
 
   grid.innerHTML = ORIGINAL_IMAGES.map(img => {
     const isHidden = hidden.includes(img.src);
@@ -331,14 +313,15 @@ function loadOriginalGallery() {
   }).join('');
 }
 
-function toggleOriginal(src) {
-  let hidden = ls(LS_HIDDEN) || [];
+async function toggleOriginal(src) {
+  const existing = (await fbGet(LS_HIDDEN)) || [];
+  let hidden = Array.isArray(existing) ? existing : Object.values(existing);
   if (hidden.includes(src)) {
     hidden = hidden.filter(s => s !== src);
   } else {
     hidden.push(src);
   }
-  lsSet(LS_HIDDEN, hidden);
+  await fbSet(LS_HIDDEN, hidden);
   loadOriginalGallery();
 }
 
@@ -357,8 +340,8 @@ const CONTENT_DEFAULTS = {
   area:        'Greater Toronto Area & Surrounding Regions',
 };
 
-function loadContent() {
-  const saved = ls(LS_CONTENT) || {};
+async function loadContent() {
+  const saved = (await fbGet(LS_CONTENT)) || {};
   const c = { ...CONTENT_DEFAULTS, ...saved };
 
   document.getElementById('c-hero-title').value = c.heroTitle;
@@ -366,15 +349,15 @@ function loadContent() {
   document.getElementById('c-hero-badge').value = c.heroBadge;
   document.getElementById('c-about-p1').value   = c.aboutP1;
   document.getElementById('c-about-p2').value   = c.aboutP2;
-  document.getElementById('c-stat-projects').value    = c.statProjects;
-  document.getElementById('c-stat-years').value       = c.statYears;
+  document.getElementById('c-stat-projects').value     = c.statProjects;
+  document.getElementById('c-stat-years').value        = c.statYears;
   document.getElementById('c-stat-satisfaction').value = c.statSatisfy;
   document.getElementById('c-phone').value = c.phone;
   document.getElementById('c-email').value = c.email;
   document.getElementById('c-area').value  = c.area;
 }
 
-function saveContent() {
+async function saveContent() {
   const content = {
     heroTitle:    document.getElementById('c-hero-title').value,
     heroSub:      document.getElementById('c-hero-sub').value,
@@ -388,57 +371,20 @@ function saveContent() {
     email:        document.getElementById('c-email').value,
     area:         document.getElementById('c-area').value,
   };
-  lsSet(LS_CONTENT, content);
+  await fbSet(LS_CONTENT, content);
 
   const status = document.getElementById('save-status');
   status.textContent = '✓ Saved successfully!';
   setTimeout(() => { status.textContent = ''; }, 3000);
 }
 
-function resetContent() {
+async function resetContent() {
   if (!confirm('Reset all content to original defaults?')) return;
-  localStorage.removeItem(LS_CONTENT);
+  await fbRemove(LS_CONTENT);
   loadContent();
   const status = document.getElementById('save-status');
   status.textContent = '✓ Reset to defaults.';
   setTimeout(() => { status.textContent = ''; }, 3000);
-}
-
-/* ===== CHANGE PASSWORD ===== */
-function showChangePwd() {
-  document.getElementById('cp-current').value = '';
-  document.getElementById('cp-new').value     = '';
-  document.getElementById('cp-confirm').value = '';
-  hide(document.getElementById('cp-error'));
-  show(document.getElementById('change-pwd-modal'));
-}
-
-function closeChangePwd() {
-  hide(document.getElementById('change-pwd-modal'));
-}
-
-async function changePassword() {
-  const current  = document.getElementById('cp-current').value;
-  const newPw    = document.getElementById('cp-new').value;
-  const confirm2 = document.getElementById('cp-confirm').value;
-  const err      = document.getElementById('cp-error');
-  hide(err);
-
-  const currentHash = await sha256(current);
-  if (currentHash !== localStorage.getItem(LS_HASH)) {
-    err.textContent = 'Current password is incorrect.'; show(err); return;
-  }
-  if (newPw.length < 6) {
-    err.textContent = 'New password must be at least 6 characters.'; show(err); return;
-  }
-  if (newPw !== confirm2) {
-    err.textContent = 'New passwords do not match.'; show(err); return;
-  }
-
-  const newHash = await sha256(newPw);
-  localStorage.setItem(LS_HASH, newHash);
-  closeChangePwd();
-  alert('Password changed successfully.');
 }
 
 /* ===== UTILS ===== */

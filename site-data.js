@@ -1,7 +1,6 @@
 /**
  * site-data.js
- * Reads admin changes from localStorage and applies them to index.html.
- * Loaded at the end of <body> in index.html.
+ * Reads admin changes from Firebase and applies them to index.html.
  */
 
 (function () {
@@ -10,13 +9,9 @@
   const LS_HIDDEN   = 'gallery_hidden';
   const LS_CONTENT  = 'site_content';
 
-  function ls(key) {
-    try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
-  }
-
   /* ===== 1. APPLY CONTENT OVERRIDES ===== */
-  function applyContent() {
-    const c = ls(LS_CONTENT);
+  async function applyContent() {
+    const c = await fbGet(LS_CONTENT);
     if (!c) return;
 
     if (c.heroTitle) {
@@ -82,9 +77,11 @@
   }
 
   /* ===== 2. HIDE ORIGINAL IMAGES ===== */
-  function applyHiddenImages() {
-    const hidden = ls(LS_HIDDEN);
-    if (!hidden || !hidden.length) return;
+  async function applyHiddenImages() {
+    const existing = await fbGet(LS_HIDDEN);
+    if (!existing) return;
+    const hidden = Array.isArray(existing) ? existing : Object.values(existing);
+    if (!hidden.length) return;
 
     document.querySelectorAll('.gallery-item img').forEach(img => {
       const src = img.getAttribute('src');
@@ -96,9 +93,11 @@
   }
 
   /* ===== 3. INJECT CUSTOM GALLERY IMAGES ===== */
-  function applyCustomImages() {
-    const custom = ls(LS_CUSTOM);
-    if (!custom || !custom.length) return;
+  async function applyCustomImages() {
+    const existing = await fbGet(LS_CUSTOM);
+    if (!existing) return;
+    const custom = Array.isArray(existing) ? existing : Object.values(existing);
+    if (!custom.length) return;
 
     const grid = document.querySelector('.gallery-grid');
     if (!grid) return;
@@ -120,16 +119,15 @@
       grid.appendChild(div);
     });
 
-    // Re-attach gallery interactions for new items (lightbox + filter)
     rewireNewGalleryItems(grid);
   }
 
-  /* ===== 4. SAVE CONTACT FORM TO localStorage ===== */
+  /* ===== 4. SAVE CONTACT FORM TO FIREBASE ===== */
   function wireContactForm() {
     const form = document.getElementById('contact-form');
     if (!form) return;
 
-    form.addEventListener('submit', () => {
+    form.addEventListener('submit', async () => {
       const msg = {
         id:      Date.now() + '_' + Math.random().toString(36).slice(2),
         date:    new Date().toISOString(),
@@ -141,9 +139,10 @@
         read:    false,
       };
 
-      const messages = JSON.parse(localStorage.getItem(LS_MESSAGES) || '[]');
+      const existing = (await fbGet(LS_MESSAGES)) || [];
+      const messages = Array.isArray(existing) ? existing : Object.values(existing);
       messages.push(msg);
-      localStorage.setItem(LS_MESSAGES, JSON.stringify(messages));
+      await fbSet(LS_MESSAGES, messages);
     });
   }
 
@@ -153,13 +152,9 @@
   }
 
   function rewireNewGalleryItems(grid) {
-    // Filter buttons still work because they use data-category selectors on the grid
-    // Lightbox needs new items registered — done lazily via event delegation if script.js
-    // already set up delegation; otherwise trigger a custom event for script.js to pick up.
     grid.querySelectorAll('.gallery-item:not([data-wired])').forEach(item => {
       item.dataset.wired = '1';
       item.addEventListener('click', () => {
-        // Rebuild gallery images array and open lightbox
         const evt = new CustomEvent('gallery:rewire');
         document.dispatchEvent(evt);
       });
