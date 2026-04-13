@@ -685,8 +685,8 @@ section { padding: 6rem 0; }
   transition: var(--transition);
 }
 .social-link:hover { background: var(--green); }
-.social-link svg { width: 18px; height: 18px; fill: var(--mid-gray); transition: fill var(--transition); }
-.social-link:hover svg { fill: var(--white); }
+.social-link svg { width: 18px; height: 18px; fill: var(--mid-gray); stroke: var(--mid-gray); transition: fill var(--transition), stroke var(--transition); }
+.social-link:hover svg { fill: var(--white); stroke: var(--white); }
 
 .contact-form {
   background: var(--off-white);
